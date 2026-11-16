@@ -1,0 +1,31 @@
+# docker-compose.override.yml — Local development overrides
+# Applied automatically when running `docker compose up` locally.
+# Do NOT commit secrets to this file; use .env instead.
+
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: builder          # use the builder stage for a faster rebuild cycle
+    volumes:
+      - ./backend:/app         # hot-reload: source changes are reflected immediately
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+    # Override CMD so debugpy is available for IDE attach on port 5678
+    command: >
+      sh -c "pip install debugpy -q &&
+             python -m debugpy --listen 0.0.0.0:5678
+             -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    ports:
+      - "8000:8000"
+      - "5678:5678"            # debugpy port
+
+  frontend:
+    # In local dev you may prefer `npm run dev` via Vite directly;
+    # leave the Docker build for staging/prod parity checks.
+    environment:
+      - NODE_ENV=development
