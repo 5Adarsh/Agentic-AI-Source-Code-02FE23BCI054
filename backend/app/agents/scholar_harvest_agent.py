@@ -84,7 +84,17 @@ class ScholarHarvestAgent:
                         authors_list = [a.strip() for a in authors_raw.split(sep) if a.strip()]
 
                     # Year extraction and sanitation
-                    year_val = row.get("year") or row.get("Year") or row.get("publication_year") or None
+                    year_val = (
+                        row.get("year")
+                        or row.get("Year")
+                        or row.get("publication_year")
+                        or row.get("Publication date")
+                        or row.get("Publication Date")
+                        or row.get("publication_date")
+                        or row.get("date")
+                        or row.get("Date")
+                        or None
+                    )
                     pub_year = None
                     if year_val:
                         digits = re.findall(r"\b(19\d\d|20\d\d)\b", str(year_val))

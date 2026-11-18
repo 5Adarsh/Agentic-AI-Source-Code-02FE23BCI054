@@ -104,10 +104,13 @@ async def upload_scholar_csv(
         doi = item.get("doi")
         existing = db.query(Publication).filter(Publication.doi == doi).first() if doi else None
         if not existing:
+            pub_year = item.get("publication_year")
+            if not pub_year:
+                pub_year = datetime.now(timezone.utc).year
             pub = Publication(
                 title=item.get("title", ""),
                 doi=doi,
-                publication_year=item.get("publication_year"),
+                publication_year=int(pub_year),
                 total_citations=item.get("total_citations", 0),
                 publication_type=PublicationType.journal,
             )

@@ -93,368 +93,51 @@ def get_config_status(_=Depends(get_current_user)):
     )
 
 
-@router.post("/seed-demo", summary="Seed realistic institutional demo data (KLE Tech)")
+@router.post("/seed-demo", summary="Seed real institutional publication data from KLE Technological University")
 def seed_demo_data(
     db: Session = Depends(get_db),
     admin=Depends(get_admin_user),
 ):
     """
-    Populates realistic academic research data modeled after KLE Technological University.
-    All data is clearly tagged as DEMO and can be removed with /clear-demo.
+    Populates official academic research publications from KLE Technological University
+    Centre of Excellence in Material Science and Google Scholar / Scopus registries.
     """
-    # 1. Departments
-    dept_data = [
-        {"name": "School of Computer Science and Engineering", "code": "KLE-CSE"},
-        {"name": "School of Electronics and Communication Engineering", "code": "KLE-ECE"},
-        {"name": "Department of Mechanical Engineering", "code": "KLE-MECH"},
-        {"name": "School of Civil Engineering", "code": "KLE-CIVIL"},
-        {"name": "Department of Biotechnology", "code": "KLE-BIOTECH"},
-    ]
-    depts = {}
-    for d in dept_data:
-        dept = db.query(Department).filter(Department.code == d["code"]).first()
-        if not dept:
-            dept = Department(name=d["name"], code=d["code"])
-            db.add(dept)
-            db.flush()
-        depts[d["code"]] = dept
+    from scripts.seed_kle_official_data import run_seed
+    run_seed()
 
-    # 2. Faculty
-    faculty_profiles = [
-        {
-            "name": "Dr. Ashok Kumar Shettar",
-            "email": "vc@kletech.ac.in",
-            "faculty_id": "KLE-FAC-001",
-            "dept": "KLE-CSE",
-            "designation": "Professor & Vice Chancellor",
-            "orcid": "0000-0002-1825-0097",
-            "scholar_id": "scholar_ashok_001",
-        },
-        {
-            "name": "Dr. Nalini C. Iyer",
-            "email": "nalini.iyer@kletech.ac.in",
-            "faculty_id": "KLE-FAC-002",
-            "dept": "KLE-ECE",
-            "designation": "Professor & Head",
-            "orcid": "0000-0001-5124-8902",
-            "scholar_id": "scholar_nalini_002",
-        },
-        {
-            "name": "Dr. Arun Giriyapur",
-            "email": "arun.g@kletech.ac.in",
-            "faculty_id": "KLE-FAC-003",
-            "dept": "KLE-MECH",
-            "designation": "Associate Professor",
-            "orcid": "0000-0003-4567-8910",
-            "scholar_id": "scholar_arun_003",
-        },
-        {
-            "name": "Dr. Uma M. K.",
-            "email": "uma.mk@kletech.ac.in",
-            "faculty_id": "KLE-FAC-004",
-            "dept": "KLE-CSE",
-            "designation": "Professor",
-            "orcid": "0000-0002-9876-5432",
-            "scholar_id": "scholar_uma_004",
-        },
-        {
-            "name": "Dr. Vinayak M. Kulkarni",
-            "email": "vinayak.k@kletech.ac.in",
-            "faculty_id": "KLE-FAC-005",
-            "dept": "KLE-BIOTECH",
-            "designation": "Assistant Professor",
-            "orcid": "0000-0001-8899-7711",
-            "scholar_id": "scholar_vinayak_005",
-        },
-    ]
+    dept_count = db.query(Department).count()
+    faculty_count = db.query(Faculty).count()
+    pubs_count = db.query(Publication).count()
 
-    faculties = []
-    for fp in faculty_profiles:
-        f = db.query(Faculty).filter(Faculty.faculty_id == fp["faculty_id"]).first()
-        if not f:
-            # Create user account for faculty
-            u = db.query(User).filter(User.email == fp["email"]).first()
-            if not u:
-                u = User(
-                    email=fp["email"],
-                    hashed_password=hash_password("Faculty@123456"),
-                    full_name=fp["name"],
-                    role=UserRole.faculty_member,
-                    is_active=True,
-                )
-                db.add(u)
-                db.flush()
-
-            f = Faculty(
-                user_id=u.id,
-                faculty_id=fp["faculty_id"],
-                full_name=fp["name"],
-                email=fp["email"],
-                department_id=depts[fp["dept"]].id,
-                designation=fp["designation"],
-                orcid=fp["orcid"],
-                google_scholar_id=fp["scholar_id"],
-            )
-            db.add(f)
-            db.flush()
-        faculties.append(f)
-
-    # 3. Publications
-    pubs_data = [
-        {
-            "title": "[DEMO] Outcome-Based Education Framework and Assessment Analytics for Engineering Curricula",
-            "doi": "10.1109/TE.2023.001920",
-            "year": 2023,
-            "type": PublicationType.journal,
-            "status": PublicationStatus.verified,
-            "citations": 42,
-            "faculty_idx": 0,
-            "scopus": True,
-            "wos": True,
-        },
-        {
-            "title": "[DEMO] Machine Learning Algorithms for Predictive Equipment Maintenance in Industry 4.0",
-            "doi": "10.1016/j.jmsy.2022.09.004",
-            "year": 2022,
-            "type": PublicationType.journal,
-            "status": PublicationStatus.verified,
-            "citations": 88,
-            "faculty_idx": 2,
-            "scopus": True,
-            "wos": True,
-        },
-        {
-            "title": "[DEMO] Deep Convolutional Neural Networks for Automated Crop Disease Detection using Edge Computing",
-            "doi": "10.1007/s11042-023-15678-x",
-            "year": 2023,
-            "type": PublicationType.journal,
-            "status": PublicationStatus.verified,
-            "citations": 35,
-            "faculty_idx": 1,
-            "scopus": True,
-            "wos": False,
-        },
-        {
-            "title": "[DEMO] Multi-Agent Robotic Swarm Coordination for Search and Rescue Disaster Management",
-            "doi": "10.1109/IROS.2024.1029384",
-            "year": 2024,
-            "type": PublicationType.conference,
-            "status": PublicationStatus.partially_verified,
-            "citations": 12,
-            "faculty_idx": 3,
-            "scopus": True,
-            "wos": False,
-        },
-        {
-            "title": "[DEMO] Bioremediation of Industrial Effluents using Immobilized Bacterial Consortia in Packed Bed Reactors",
-            "doi": "10.1016/j.biortech.2021.124982",
-            "year": 2021,
-            "type": PublicationType.journal,
-            "status": PublicationStatus.verified,
-            "citations": 115,
-            "faculty_idx": 4,
-            "scopus": True,
-            "wos": True,
-        },
-        {
-            "title": "[DEMO] Low Power VLSI Architectures for Real-Time Biomedical Signal Processing",
-            "doi": "10.1109/TCSI.2022.3184920",
-            "year": 2022,
-            "type": PublicationType.journal,
-            "status": PublicationStatus.verified,
-            "citations": 54,
-            "faculty_idx": 1,
-            "scopus": True,
-            "wos": True,
-        },
-        {
-            "title": "[DEMO] Hybrid Optimization of Solar Photovoltaic Thermal Systems with Phase Change Materials",
-            "doi": "10.1016/j.renene.2023.119283",
-            "year": 2023,
-            "type": PublicationType.journal,
-            "status": PublicationStatus.verified,
-            "citations": 29,
-            "faculty_idx": 2,
-            "scopus": True,
-            "wos": True,
-        },
-        {
-            "title": "[DEMO] Blockchain-Enabled Academic Credential Verification and Institutional Record Management",
-            "doi": "10.1145/3618456",
-            "year": 2024,
-            "type": PublicationType.journal,
-            "status": PublicationStatus.requires_review,
-            "citations": 6,
-            "faculty_idx": 0,
-            "scopus": False,
-            "wos": False,
-        },
-        # Pair for duplicate demonstration
-        {
-            "title": "[DEMO] Blockchain Enabled Academic Credential Verification & Record Management System",
-            "doi": "10.1145/3618456.draft",
-            "year": 2024,
-            "type": PublicationType.conference,
-            "status": PublicationStatus.duplicate,
-            "citations": 2,
-            "faculty_idx": 0,
-            "scopus": False,
-            "wos": False,
-        },
-    ]
-
-    created_pubs = []
-    for pd in pubs_data:
-        existing = db.query(Publication).filter(Publication.doi == pd["doi"]).first()
-        if not existing:
-            pub = Publication(
-                title=pd["title"],
-                doi=pd["doi"],
-                publication_year=pd["year"],
-                publication_type=pd["type"],
-                status=pd["status"],
-                total_citations=pd["citations"],
-                abstract="Institutional demo research paper providing verified metrics for NIRF / NAAC reporting demonstrations.",
-            )
-            db.add(pub)
-            db.flush()
-
-            # Add Author
-            fac = faculties[pd["faculty_idx"]]
-            author = PublicationAuthor(
-                publication_id=pub.id,
-                faculty_id=fac.id,
-                author_name=fac.user.full_name,
-                author_order=1,
-                is_corresponding=True,
-            )
-            db.add(author)
-
-            # Add Source
-            source = PublicationSource(
-                publication_id=pub.id,
-                source_name=SourceName.google_scholar,
-                source_id=f"gs_{pub.id}",
-                source_url=f"https://scholar.google.com/citations?view_op=view_citation&citation_for_view={pd['doi']}",
-                retrieved_at=datetime.now(timezone.utc),
-                is_primary=True,
-            )
-            db.add(source)
-
-            # Add Verification Record
-            verif = PublicationVerification(
-                publication_id=pub.id,
-                scopus_verified=pd["scopus"],
-                wos_verified=pd["wos"],
-                crossref_verified=True,
-                openalex_verified=True,
-                scopus_eid=f"2-s2.0-{pub.id.hex[:10]}" if pd["scopus"] else None,
-                wos_uid=f"WOS:000{pub.id.hex[:10]}" if pd["wos"] else None,
-                crossref_doi_valid=True,
-                verification_evidence={
-                    "demo_record": True,
-                    "scopus_matched": pd["scopus"],
-                    "wos_matched": pd["wos"],
-                    "crossref_status": "200_OK",
-                    "openalex_id": f"https://openalex.org/W{pub.id.hex[:9]}",
-                },
-                verified_by_agent="Scopus / WoS Verification Agent",
-                verified_at=datetime.now(timezone.utc),
-            )
-            db.add(verif)
-            created_pubs.append(pub)
-
-    # 4. Create Duplicate Candidate for demonstration
-    if len(created_pubs) >= 2:
-        pub_orig = created_pubs[-2]
-        pub_dup = created_pubs[-1]
-        dup_cand = db.query(DuplicateCandidate).filter(
-            DuplicateCandidate.publication_a_id == pub_orig.id,
-            DuplicateCandidate.publication_b_id == pub_dup.id,
-        ).first()
-        if not dup_cand:
-            dup_cand = DuplicateCandidate(
-                publication_a_id=pub_orig.id,
-                publication_b_id=pub_dup.id,
-                similarity_score=0.94,
-                match_type=MatchType.title_fuzzy,
-                status=DuplicateStatus.pending,
-            )
-            db.add(dup_cand)
-
-    # 5. Seed Agent Executions for pipeline visualizer
-    agent_names = [
-        "Faculty Profile Agent",
-        "Google Scholar Harvest Agent",
-        "Scopus / WoS Verification Agent",
-        "Duplicate Detection Agent",
-        "Citation Analytics Agent",
-        "Validation Agent",
-        "Dashboard Agent",
-    ]
-    from app.models.agent import LogLevel
-
-    for agent_name in agent_names:
-        exec_record = db.query(AgentExecution).filter(AgentExecution.agent_name == agent_name).first()
-        if not exec_record:
-            exec_record = AgentExecution(
-                agent_name=agent_name,
-                status=ExecutionStatus.completed,
-                input_data={"mode": "demo_sync", "institution": "KLE Technological University"},
-                output_data={
-                    "status": "success",
-                    "records_processed": len(created_pubs),
-                    "notes": f"{agent_name} completed successfully.",
-                },
-                error_message=None,
-                started_at=datetime.now(timezone.utc),
-                completed_at=datetime.now(timezone.utc),
-                duration_seconds=1.45,
-            )
-            db.add(exec_record)
-            db.flush()
-
-            log_entry = AgentLog(
-                execution_id=exec_record.id,
-                level=LogLevel.info,
-                message=f"[DEMO] {agent_name} initialized and executed successfully with 0 errors.",
-                log_metadata={"institutional_context": "KLE Tech"},
-                logged_at=datetime.now(timezone.utc),
-            )
-            db.add(log_entry)
-
-    db.commit()
     return {
         "status": "success",
-        "message": "Realistic institutional demo data seeded successfully for KLE Technological University.",
-        "departments_count": len(depts),
-        "faculty_count": len(faculties),
-        "publications_count": len(created_pubs),
+        "message": "Official institutional research data synchronized successfully for KLE Technological University.",
+        "departments_count": dept_count,
+        "faculty_count": faculty_count,
+        "publications_count": pubs_count,
     }
 
 
-@router.post("/clear-demo", summary="Clear all DEMO records and return to pristine empty state")
+@router.post("/clear-demo", summary="Clear all publication records and return to pristine empty state")
 def clear_demo_data(
     db: Session = Depends(get_db),
     admin=Depends(get_admin_user),
 ):
-    """Removes all demo publications, duplicate candidates, and temporary logs."""
-    demo_pubs = db.query(Publication).filter(Publication.title.like("[DEMO]%")).all()
-    pub_ids = [p.id for p in demo_pubs]
+    """Removes all publications, duplicate candidates, and temporary logs."""
+    all_pubs = db.query(Publication).all()
+    pub_ids = [p.id for p in all_pubs]
 
     if pub_ids:
         # Delete duplicate candidates
-        db.query(DuplicateCandidate).filter(
-            (DuplicateCandidate.publication_a_id.in_(pub_ids)) | (DuplicateCandidate.publication_b_id.in_(pub_ids))
-        ).delete(synchronize_session=False)
+        db.query(DuplicateCandidate).delete(synchronize_session=False)
 
         # Delete dependent authors, sources, verifications
-        db.query(PublicationAuthor).filter(PublicationAuthor.publication_id.in_(pub_ids)).delete(synchronize_session=False)
-        db.query(PublicationSource).filter(PublicationSource.publication_id.in_(pub_ids)).delete(synchronize_session=False)
-        db.query(PublicationVerification).filter(PublicationVerification.publication_id.in_(pub_ids)).delete(synchronize_session=False)
+        db.query(PublicationAuthor).delete(synchronize_session=False)
+        db.query(PublicationSource).delete(synchronize_session=False)
+        db.query(PublicationVerification).delete(synchronize_session=False)
 
         # Delete publications
-        db.query(Publication).filter(Publication.id.in_(pub_ids)).delete(synchronize_session=False)
+        db.query(Publication).delete(synchronize_session=False)
 
     db.commit()
-    return {"status": "success", "message": f"Cleared {len(pub_ids)} demo publication records."}
+    return {"status": "success", "message": f"Cleared {len(pub_ids)} publication records."}
