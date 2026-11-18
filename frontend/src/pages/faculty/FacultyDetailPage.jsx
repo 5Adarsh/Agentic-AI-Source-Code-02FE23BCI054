@@ -17,12 +17,15 @@ export default function FacultyDetailPage() {
   useEffect(() => {
     async function load() {
       try {
-        const [facData, pubsData] = await Promise.all([
-          getFacultyById(id),
-          getFacultyPublications(id),
-        ])
+        const facData = await getFacultyById(id)
         setFaculty(facData)
-        setPublications(pubsData || [])
+        try {
+          const pubsData = await getFacultyPublications(id)
+          setPublications(pubsData || [])
+        } catch (e) {
+          console.warn('Could not load faculty publications:', e)
+          setPublications([])
+        }
       } catch (err) {
         console.error('Error loading faculty profile:', err)
       } finally {
