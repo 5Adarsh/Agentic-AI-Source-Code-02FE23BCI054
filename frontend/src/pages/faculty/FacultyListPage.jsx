@@ -43,19 +43,21 @@ export default function FacultyListPage() {
     {
       header: 'ORCID',
       accessor: 'orcid',
-      render: (row) =>
-        row.orcid ? (
+      render: (row) => {
+        const clean = row.orcid ? row.orcid.replace(/^https?:\/\/orcid\.org\//, '').trim() : null
+        return clean ? (
           <a
-            href={`https://orcid.org/${row.orcid}`}
+            href={`https://orcid.org/${clean}`}
             target="_blank"
             rel="noreferrer"
-            className="text-xs font-mono text-emerald-600 hover:underline"
+            className="text-xs font-mono text-emerald-600 font-semibold hover:underline flex items-center gap-1"
           >
-            {row.orcid}
+            <span>🔗</span> {clean}
           </a>
         ) : (
           <span className="text-slate-400 text-xs">—</span>
-        ),
+        )
+      },
     },
     {
       header: 'Status',

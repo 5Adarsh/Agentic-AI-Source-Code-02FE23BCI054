@@ -11,9 +11,11 @@ Responsibilities:
 """
 import csv
 import io
+import os
 import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.agents.state import AgentState
@@ -49,6 +51,18 @@ class ScholarHarvestAgent:
         newly_harvested: List[Dict[str, Any]] = []
         csv_content = state.get("scholar_csv_content")
         errors: List[Dict[str, Any]] = list(updated_state.get("errors", []))
+
+        # Fallback to local real_google_scholar_export.csv if neither csv nor existing pubs are provided
+        if not csv_content and not existing_pubs:
+            for pth in ["real_google_scholar_export.csv", "../real_google_scholar_export.csv", "backend/scripts/belagavi_raw.csv"]:
+                if os.path.exists(pth):
+                    try:
+                        with open(pth, "r", encoding="utf-8") as f:
+                            csv_content = f.read()
+                            logger.info("[ScholarHarvestAgent] Ingested fallback source from %s", pth)
+                            break
+                    except Exception:
+                        pass
 
         # 1. Process Scholar CSV export if provided
         if csv_content:
@@ -159,6 +173,61 @@ class ScholarHarvestAgent:
                     logger.info("[ScholarHarvestAgent] Retrieved %d works from OpenAlex", len(openalex_works))
             except Exception as e:
                 logger.warning("[ScholarHarvestAgent] OpenAlex fallback harvest failed: %s", str(e))
+
+        # Persist newly harvested items to DB if requested and database session exists
+        if self.db and newly_harvested and state.get("persist_to_db", False):
+            from app.models.publication import Publication, PublicationAuthor, PublicationType
+            from app.models.verification import PublicationVerification
+            faculty_id_val = updated_state.get("faculty_id")
+            fac_uuid = None
+            if faculty_id_val:
+                try:
+                    fac_uuid = UUID(str(faculty_id_val))
+                except Exception:
+                    pass
+
+            for item in newly_harvested:
+                doi = item.get("doi")
+                title = item.get("title", "").strip()
+                existing = None
+                if doi:
+                    existing = self.db.query(Publication).filter(Publication.doi == doi).first()
+                if not existing and title:
+                    existing = self.db.query(Publication).filter(Publication.title == title).first()
+
+                if not existing and title:
+                    pub_year = item.get("publication_year") or datetime.now(timezone.utc).year
+                    new_pub = Publication(
+                        title=title,
+                        doi=doi,
+                        publication_year=int(pub_year),
+                        total_citations=item.get("total_citations", 0),
+                        publication_type=PublicationType.journal,
+                    )
+                    self.db.add(new_pub)
+                    self.db.flush()
+
+                    if fac_uuid:
+                        pa = PublicationAuthor(
+                            publication_id=new_pub.id,
+                            faculty_id=fac_uuid,
+                            author_name=item.get("authors", ["Faculty Author"])[0] if item.get("authors") else "Faculty Author",
+                            author_order=1,
+                        )
+                        self.db.add(pa)
+
+                    pv = PublicationVerification(
+                        publication_id=new_pub.id,
+                        crossref_verified=False,
+                        scopus_verified=False,
+                        wos_verified=False,
+                    )
+                    self.db.add(pv)
+            try:
+                self.db.commit()
+            except Exception as e:
+                logger.error("[ScholarHarvestAgent] DB commit error: %s", str(e))
+                self.db.rollback()
 
         all_publications = existing_pubs + newly_harvested
         updated_state["harvested_publications"] = all_publications

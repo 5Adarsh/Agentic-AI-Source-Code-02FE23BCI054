@@ -70,11 +70,12 @@ export default function AgentsPage() {
 
   const fetchExecutions = async () => {
     try {
-      const { data } = await agentApi.listExecutions({ limit: 50 })
-      setExecutions(data || [])
-      if (data && data.length > 0 && !selectedExecution) {
-        setSelectedExecution(data[0])
-        loadLogs(data[0].id)
+      const res = await agentApi.listExecutions({ limit: 50 })
+      const list = Array.isArray(res) ? res : (res?.data || [])
+      setExecutions(list)
+      if (list && list.length > 0 && !selectedExecution) {
+        setSelectedExecution(list[0])
+        loadLogs(list[0].id)
       }
     } catch (err) {
       console.error('Failed to load agent executions:', err)
@@ -89,8 +90,9 @@ export default function AgentsPage() {
 
   const loadLogs = async (executionId) => {
     try {
-      const { data } = await agentApi.getExecutionLogs(executionId)
-      setLogs(data || [])
+      const res = await agentApi.getExecutionLogs(executionId)
+      const list = Array.isArray(res) ? res : (res?.data || [])
+      setLogs(list)
     } catch {
       setLogs([])
     }
@@ -149,13 +151,17 @@ export default function AgentsPage() {
     }
   }
 
-  // Get last execution record for each agent
+  // Get last execution record for each agent with resilient normalization
   const getAgentLastRun = (agentId) => {
-    return executions.find(
-      (e) =>
-        e.agent_name?.toLowerCase().includes(agentId.replace('_agent', '')) ||
+    const cleanId = agentId.toLowerCase().replace(/[^a-z0-9]/g, '').replace('agent', '')
+    return executions.find((e) => {
+      const eName = (e.agent_name || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+      return (
+        eName.includes(cleanId) ||
+        cleanId.includes(eName.replace('agent', '')) ||
         e.agent_name?.toLowerCase() === agentId.toLowerCase()
-    )
+      )
+    })
   }
 
   const completedAgentIds = SEVEN_AGENTS.filter((a) => {

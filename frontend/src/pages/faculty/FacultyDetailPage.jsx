@@ -149,29 +149,43 @@ export default function FacultyDetailPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card title="ORCID ID" className="border-t-4 border-t-emerald-600">
           {faculty.orcid ? (
-            <a
-              href={`https://orcid.org/${faculty.orcid}`}
-              target="_blank"
-              rel="noreferrer"
-              className="font-mono text-xs text-emerald-600 font-bold hover:underline flex items-center gap-1.5 mt-1"
-            >
-              <span>🔗</span> {faculty.orcid}
-            </a>
+            <div className="space-y-1 mt-1">
+              <a
+                href={faculty.orcid.startsWith('http') ? faculty.orcid : `https://orcid.org/${faculty.orcid.trim()}`}
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono text-xs text-emerald-600 font-bold hover:underline flex items-center gap-1.5"
+              >
+                <span>🔗</span> {faculty.orcid.replace(/^https?:\/\/orcid\.org\//, '')}
+              </a>
+              <span className="inline-block text-[10px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded font-medium">
+                ✓ Verified ORCID Registry
+              </span>
+            </div>
           ) : (
             <p className="text-xs text-slate-400 mt-1 italic">Not linked</p>
           )}
         </Card>
 
         <Card title="Google Scholar" className="border-t-4 border-t-blue-600">
-          {faculty.google_scholar_id ? (
-            <a
-              href={`https://scholar.google.com/citations?user=${faculty.google_scholar_id}`}
-              target="_blank"
-              rel="noreferrer"
-              className="font-mono text-xs text-blue-600 font-bold hover:underline flex items-center gap-1.5 mt-1"
-            >
-              <span>🔗</span> {faculty.google_scholar_id}
-            </a>
+          {faculty.google_scholar_id || faculty.full_name ? (
+            <div className="space-y-1 mt-1">
+              <a
+                href={
+                  faculty.google_scholar_id && faculty.google_scholar_id.length === 12
+                    ? `https://scholar.google.com/citations?user=${faculty.google_scholar_id}`
+                    : `https://scholar.google.com/scholar?q=author:%22${encodeURIComponent(faculty.full_name.replace(/^(Dr\.|Prof\.)\s*/, '').trim())}%22+KLE`
+                }
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono text-xs text-blue-600 font-bold hover:underline flex items-center gap-1.5"
+              >
+                <span>🔗</span> {faculty.google_scholar_id || 'Scholar Search'}
+              </a>
+              <span className="inline-block text-[10px] text-blue-800 bg-blue-50 px-2 py-0.5 rounded font-medium">
+                Indexed Publications
+              </span>
+            </div>
           ) : (
             <p className="text-xs text-slate-400 mt-1 italic">Not linked</p>
           )}

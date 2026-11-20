@@ -100,10 +100,10 @@ def seed_demo_data(
 ):
     """
     Populates official academic research publications from KLE Technological University
-    Centre of Excellence in Material Science and Google Scholar / Scopus registries.
+    Hubballi and Belagavi campuses.
     """
-    from scripts.seed_kle_official_data import run_seed
-    run_seed()
+    from scripts.ingest_belagavi_data import run_unified_ingest
+    run_unified_ingest()
 
     dept_count = db.query(Department).count()
     faculty_count = db.query(Faculty).count()

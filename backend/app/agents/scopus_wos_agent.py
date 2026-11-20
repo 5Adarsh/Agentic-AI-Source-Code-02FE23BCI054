@@ -51,7 +51,9 @@ class ScopusWosAgent:
         scopus_avail = self.scopus.is_configured
         wos_avail = self.wos.is_configured
 
-        for pub in publications:
+        live_api_calls_count = 0
+
+        for idx, pub in enumerate(publications):
             doi = pub.get("doi")
             title = pub.get("title", "")
             
@@ -63,7 +65,28 @@ class ScopusWosAgent:
             wos_uid = None
             evidence_records: List[Dict[str, Any]] = []
 
-            if doi:
+            # Check if record is already verified in database first
+            db_verif = None
+            if self.db and doi:
+                from app.models.publication import Publication
+                from app.models.verification import PublicationVerification
+                try:
+                    db_pub = self.db.query(Publication).filter(Publication.doi == doi).first()
+                    if db_pub:
+                        db_verif = self.db.query(PublicationVerification).filter(PublicationVerification.publication_id == db_pub.id).first()
+                except Exception:
+                    pass
+
+            if db_verif:
+                scopus_verified = db_verif.scopus_verified
+                wos_verified = db_verif.wos_verified
+                crossref_verified = db_verif.crossref_verified
+                openalex_verified = db_verif.openalex_verified
+                scopus_eid = db_verif.scopus_eid
+                wos_uid = db_verif.wos_uid
+                evidence_records = [db_verif.verification_evidence] if db_verif.verification_evidence else []
+            elif doi and live_api_calls_count < 10:
+                live_api_calls_count += 1
                 # 1. Scopus official verification
                 scopus_res = await self.scopus.verify_doi(doi)
                 if scopus_res.get("verified"):
